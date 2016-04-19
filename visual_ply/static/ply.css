@@ -1,0 +1,92 @@
+
+body{
+	width: 100%;
+    background-color: #000000;
+}
+circle{
+  fill: white;
+  stroke: steelblue;
+  stroke-width: 2px;
+}
+
+line{
+  stroke: #23a4ff;
+  stroke-width: 2px;
+}
+
+#treesvg {
+    width: 100%;
+    height: 460px;
+}
+
+#treesvg g text:hover, #treesvg g circle:hover{
+	cursor:pointer;
+}
+
+#g_labels text{
+	text-anchor:middle;
+}
+
+svg text {
+    fill: #ffffff;
+}
+
+svg circle {
+    fill: #000000;
+}
+
+svg rect {
+    stroke: #23a4ff;
+    height: 30px;
+}
+
+
+/*html, body {*/
+    /*margin:0;*/
+    /*padding:0;*/
+    /*font-family: "Lucida Grande", Verdana;*/
+    /*font-size: 0.9em;*/
+    /*text-align: center;*/
+    /*background-color:#F2F2F2;*/
+/*}*/
+
+/*input, select {*/
+    /*font-size:0.9em;*/
+/*}*/
+
+/*h4 {*/
+    /*font-size:1.1em;*/
+    /*text-decoration:none;*/
+    /*font-weight:normal;*/
+    /*color:#23A4FF;*/
+/*}*/
+
+/*a {*/
+    /*color:#23A4FF;*/
+/*}*/
+
+/*#message, #status {*/
+    /*height: 30px;*/
+    /*line-height: 30px;*/
+    /*margin: 0 15px -30px 15px;*/
+/*}*/
+
+/*#message {*/
+    /*text-align: left;*/
+    /*font-size:1.0em;*/
+    /*font-weight:bold;*/
+    /*color:#23A4FF;*/
+/*}*/
+
+/*#status {*/
+    /*text-align: right;*/
+/*}*/
+
+/*#container, #status {*/
+    /*background-color:#1a1a1a;*/
+    /*color:#ccc;*/
+/*}*/
+
+/*#container {*/
+    /*width:100%;*/
+/*}*/
