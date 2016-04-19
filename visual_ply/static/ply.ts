@@ -13,6 +13,8 @@ function do_load() {
 class Ast {
     constructor(public id,
                 public name,
+                public px = 0,
+                public py = 0,
                 //public width = 1,
                 public children = [],
                 public parent = {}) {
@@ -55,19 +57,16 @@ function get_node_data(node_name) {
 
 
 class AstTree {
-    ast = {id: 0, children: []};
     serial = 1;
-    glabels = [];
+    ast = new Ast(0, 'root');  // {id: 0, children: []};
     vRad = 12;
-    cx = 800;
-    cy = 30;
-    w = 60;
-    h = 70;
+    node_width = 60;
+    tier_height = 70;
 
     constructor(public root_node) {
-        this.ast['name'] = root_node.name;
-        this.ast['px'] = this.cx;
-        this.ast['py'] = this.cy;
+        this.ast.name = root_node.name;
+        this.ast.px = 800;
+        this.ast.py = 30;
         this.initialize()
     }
 
@@ -144,22 +143,19 @@ class AstTree {
 
     addLeaf(_) {
         var node = get_node_data('__root__');
-        var c = {id: this.serial++, name: node.name, px:0, py:0, children: []};
-        function _addLeaf(t) {
-            if (t.id == _) {
-                t.children.push(c);
+        var children = new Ast(this.serial++, node.name);
+        function _addLeaf(ast) {
+            if (ast.id == _) {
+                ast.children.push(children);
                 return;
             }
-            t.children.forEach(_addLeaf);
+            ast.children.forEach(_addLeaf);
         }
 
         // ****************************************************
         _addLeaf(this.ast);
         this.reposition(this.ast);
         // ****************************************************
-        if (this.glabels.length != 0) {
-            this.glabels = [];
-        }
 
         this.redraw();
     }
@@ -254,13 +250,13 @@ class AstTree {
         });
     }
 
-    reposition(v) {
-        var lC = getLeafCount(v), left = v.px - this.w * (lC - 1) / 2;
-        for (var d of v.children) {
-            var w = this.w * getLeafCount(d);
-            left += w;
-            d.px = left - (w + this.w) / 2;
-            d.py = v.py + this.h;
+    reposition(ast) {
+        var lC = getLeafCount(ast), left = ast.px - this.node_width * (lC - 1) / 2;
+        for (var d of ast.children) {
+            var width = this.node_width * getLeafCount(d);
+            left += width;
+            d.px = left - (width + this.node_width) / 2;
+            d.py = ast.py + this.tier_height;
             this.reposition(d);
         }
     }

@@ -6,13 +6,17 @@ function do_load() {
     var ply = new AstTree(root_node);
 }
 var Ast = (function () {
-    function Ast(id, name, 
+    function Ast(id, name, px, py, 
         //public width = 1,
         children, parent) {
+        if (px === void 0) { px = 0; }
+        if (py === void 0) { py = 0; }
         if (children === void 0) { children = []; }
         if (parent === void 0) { parent = {}; }
         this.id = id;
         this.name = name;
+        this.px = px;
+        this.py = py;
         this.children = children;
         this.parent = parent;
     }
@@ -50,17 +54,14 @@ function getLeafCount(_) {
 var AstTree = (function () {
     function AstTree(root_node) {
         this.root_node = root_node;
-        this.ast = { id: 0, children: [] };
         this.serial = 1;
-        this.glabels = [];
+        this.ast = new Ast(0, 'root'); // {id: 0, children: []};
         this.vRad = 12;
-        this.cx = 800;
-        this.cy = 30;
-        this.w = 60;
-        this.h = 70;
-        this.ast['name'] = root_node.name;
-        this.ast['px'] = this.cx;
-        this.ast['py'] = this.cy;
+        this.node_width = 60;
+        this.tier_height = 70;
+        this.ast.name = root_node.name;
+        this.ast.px = 800;
+        this.ast.py = 30;
         this.initialize();
     }
     AstTree.prototype.initialize = function () {
@@ -127,21 +128,18 @@ var AstTree = (function () {
     };
     AstTree.prototype.addLeaf = function (_) {
         var node = get_node_data('__root__');
-        var c = { id: this.serial++, name: node.name, px: 0, py: 0, children: [] };
-        function _addLeaf(t) {
-            if (t.id == _) {
-                t.children.push(c);
+        var children = new Ast(this.serial++, node.name);
+        function _addLeaf(ast) {
+            if (ast.id == _) {
+                ast.children.push(children);
                 return;
             }
-            t.children.forEach(_addLeaf);
+            ast.children.forEach(_addLeaf);
         }
         // ****************************************************
         _addLeaf(this.ast);
         this.reposition(this.ast);
         // ****************************************************
-        if (this.glabels.length != 0) {
-            this.glabels = [];
-        }
         this.redraw();
     };
     AstTree.prototype.redraw = function () {
@@ -224,14 +222,14 @@ var AstTree = (function () {
             return d.py + 5;
         });
     };
-    AstTree.prototype.reposition = function (v) {
-        var lC = getLeafCount(v), left = v.px - this.w * (lC - 1) / 2;
-        for (var _i = 0, _a = v.children; _i < _a.length; _i++) {
+    AstTree.prototype.reposition = function (ast) {
+        var lC = getLeafCount(ast), left = ast.px - this.node_width * (lC - 1) / 2;
+        for (var _i = 0, _a = ast.children; _i < _a.length; _i++) {
             var d = _a[_i];
-            var w = this.w * getLeafCount(d);
-            left += w;
-            d.px = left - (w + this.w) / 2;
-            d.py = v.py + this.h;
+            var width = this.node_width * getLeafCount(d);
+            left += width;
+            d.px = left - (width + this.node_width) / 2;
+            d.py = ast.py + this.tier_height;
             this.reposition(d);
         }
     };
