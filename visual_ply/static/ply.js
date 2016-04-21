@@ -1,27 +1,9 @@
 /// <reference path="libs/jquery.d.ts" />
 /// <reference path="libs/d3.d.ts" />
 function do_load() {
-    var root_node = get_node_data('__root__');
     //console.log(JSON.stringify(root_node, null, 4));
-    var ply = new AstTree(root_node);
+    var ply = new AstTree();
 }
-var Ast = (function () {
-    function Ast(id, name, px, py, 
-        //public width = 1,
-        children, parent) {
-        if (px === void 0) { px = 0; }
-        if (py === void 0) { py = 0; }
-        if (children === void 0) { children = []; }
-        if (parent === void 0) { parent = {}; }
-        this.id = id;
-        this.name = name;
-        this.px = px;
-        this.py = py;
-        this.children = children;
-        this.parent = parent;
-    }
-    return Ast;
-})();
 function get_node_data(node_name) {
     var data = null;
     $.ajax({
@@ -51,63 +33,71 @@ function getLeafCount(_) {
         });
     }
 }
-var AstTree = (function () {
-    function AstTree(root_node) {
-        this.root_node = root_node;
-        this.serial = 1;
-        this.ast = new Ast(0, 'root'); // {id: 0, children: []};
-        this.vRad = 12;
-        this.node_width = 60;
-        this.tier_height = 70;
-        this.ast.name = root_node.name;
-        this.ast.px = 800;
-        this.ast.py = 30;
-        this.initialize();
+var Ast = (function () {
+    function Ast(id, name, px, py, 
+        //public width = 1,
+        children, parent) {
+        if (px === void 0) { px = 0; }
+        if (py === void 0) { py = 0; }
+        if (children === void 0) { children = []; }
+        if (parent === void 0) { parent = { id: null, px: null, py: null }; }
+        this.id = id;
+        this.name = name;
+        this.px = px;
+        this.py = py;
+        this.children = children;
+        this.parent = parent;
     }
-    AstTree.prototype.initialize = function () {
+    return Ast;
+})();
+var AstTree = (function () {
+    function AstTree() {
+        this.serial = 1;
+        this.ast = null;
+        this.vRad = 12;
+        this.node_width = 85;
+        this.tier_height = 70;
+        var root_data = get_node_data('__root__');
+        this.ast = new Ast(0, root_data.name, 800, 30);
+        //console.log('aaa');
+        //console.log(this.ast);
+        this.bind_root_event();
+        var id = this.serial++;
+        var ast = new Ast(id, root_data.name);
+        this.addAst(null, ast);
+        console.log(root_data);
+        for (var _i = 0, _a = root_data.children; _i < _a.length; _i++) {
+            var children_data = _a[_i];
+            console.log(children_data);
+            var children = new Ast(0, children_data.name);
+            this.addChildren(ast, children);
+        }
+    }
+    AstTree.prototype.bind_root_event = function () {
         d3.select("#treesvg").append('g').attr('id', 'g_circles').selectAll('circle').data(this.getVertices()).enter()
             .append('circle').attr('r', this.vRad)
             .on('click', function (d) {
-            return this.addLeaf(d.id);
+            return _tree.addChildren(d);
         });
-        //d3.select("#treesvg").append('rect').attr('width', 50).attr('x', 600).attr('y', 100);
-        //d3.select("#treesvg").append('g').attr('id', 'g_rects').selectAll('rect').data(tree.getVertices()).enter()
-        //    .append('rect').attr('cx', function (d) {
-        //    return d.px;
-        //})  .attr('cy', function (d) {
-        //    return d.py;
-        //}).attr('width', vRad).attr('height', vRad)
-        //var aaa = [{
-        //    "v": 0,
-        //    "l": root_node.name,
-        //    "p": {
-        //        "x": 800,
-        //        "y": 30
-        //    },
-        //    "f": {}
-        //}];
-        ////
         var _tree = this;
         d3.select("#treesvg").append('g').attr('id', 'g_labels').selectAll('text').data(this.getVertices()).enter()
             .append('text')
             .on('click', function (d) {
-            return _tree.addLeaf(d.id);
+            return _tree.addChildren(d);
         });
-        //tree.addLeaf(0);
-        this.addLeaf(0);
-        this.addLeaf(0);
-        //redraw();
     };
     AstTree.prototype.getVertices = function () {
         var v = [];
-        function _getVertices(t, parent) {
-            v.push({ id: t.id, name: t.name, px: t.px, py: t.py, parent: parent });
+        function _getVertices(t) {
+            //v.push({id: t.id, name: t.name, px: t.px, py: t.py, parent: parent});
+            v.push(t);
+            //console.log(t);
             for (var _i = 0, _a = t.children; _i < _a.length; _i++) {
                 var d = _a[_i];
-                _getVertices(d, { id: t.id, px: t.px, py: t.py });
+                _getVertices(d);
             }
         }
-        _getVertices(this.ast, {});
+        _getVertices(this.ast);
         return v.sort(function (a, b) {
             return a.id - b.id;
         });
@@ -116,28 +106,39 @@ var AstTree = (function () {
         var e = [];
         function _getEdges(_) {
             for (var _i = 0, _a = _.children; _i < _a.length; _i++) {
-                var d = _a[_i];
-                e.push({ v1: _.id, l1: _.name, p1x: _.px, p1y: _.py, v2: d.id, l2: d.name, p2x: d.px, p2y: d.py });
+                var children = _a[_i];
+                e.push(children);
+                _getEdges(children);
             }
-            _.children.forEach(_getEdges);
         }
         _getEdges(this.ast);
-        return e.sort(function (a, b) {
-            return a.v2 - b.v2;
-        });
+        return e.sort(function (a, b) { return a.id - b.id; });
     };
-    AstTree.prototype.addLeaf = function (_) {
-        var node = get_node_data('__root__');
-        var children = new Ast(this.serial++, node.name);
-        function _addLeaf(ast) {
-            if (ast.id == _) {
-                ast.children.push(children);
-                return;
+    AstTree.prototype.addChildren = function (parent) {
+        var node = get_node_data(parent.name);
+        var id = this.serial++;
+        var ast = new Ast(id, node.name);
+        this.addAst(parent, ast);
+    };
+    AstTree.prototype.addAst = function (parent, c_ast) {
+        if (parent) {
+            c_ast.parent = { id: parent.id, px: parent.px, py: parent.py };
+        }
+        function _add(ast) {
+            if (ast.id == c_ast.parent.id) {
+                ast.children.push(c_ast);
+                return true;
             }
-            ast.children.forEach(_addLeaf);
+            for (var _i = 0, _a = ast.children; _i < _a.length; _i++) {
+                var children = _a[_i];
+                if (_add(children)) {
+                    return true;
+                }
+            }
+            return false;
         }
         // ****************************************************
-        _addLeaf(this.ast);
+        _add(this.ast);
         this.reposition(this.ast);
         // ****************************************************
         this.redraw();
@@ -146,81 +147,37 @@ var AstTree = (function () {
         var edges = d3.select("#g_lines").selectAll('line').data(this.getEdges());
         var _tree = this;
         edges.transition().duration(500)
-            .attr('x1', function (d) {
-            return d.p1x;
-        }).attr('y1', function (d) {
-            return d.p1y;
-        })
-            .attr('x2', function (d) {
-            return d.p2x;
-        }).attr('y2', function (d) {
-            return d.p2y;
-        });
+            .attr('x1', function (d) { return d.parent.px; })
+            .attr('y1', function (d) { return d.parent.py; })
+            .attr('x2', function (d) { return d.px; })
+            .attr('y2', function (d) { return d.py; });
         edges.enter().append('line')
-            .attr('x1', function (d) {
-            return d.p1x;
-        }).attr('y1', function (d) {
-            return d.p1y;
-        })
-            .attr('x2', function (d) {
-            return d.p1x;
-        }).attr('y2', function (d) {
-            return d.p1y;
-        })
-            .transition().duration(500)
-            .attr('x2', function (d) {
-            return d.p2x;
-        }).attr('y2', function (d) {
-            return d.p2y;
-        });
-        console.log(JSON.stringify(this.getVertices(), null, 4));
+            .attr('x1', function (d) { console.log(d.parent); return d.parent.px; })
+            .attr('y1', function (d) { return d.parent.py; })
+            .attr('x2', function (d) { return d.px; })
+            .attr('y2', function (d) { return d.py; });
         var circles = d3.select("#g_circles").selectAll('circle').data(this.getVertices());
-        circles.transition().duration(500).attr('cx', function (d) {
-            return d.px;
-        }).attr('cy', function (d) {
-            return d.py;
-        });
-        circles.enter().append('circle').attr('cx', function (d) {
-            return d.parent.px;
-        }).attr('cy', function (d) {
-            return d.parent.py;
-        }).attr('r', this.vRad)
-            .on('click', function (d) {
-            return _tree.addLeaf(d.id);
-        })
-            .transition().duration(500).attr('cx', function (d) {
-            return d.px;
-        }).attr('cy', function (d) {
-            return d.py;
-        });
+        circles.transition().duration(500)
+            .attr('cx', function (d) { return d.px; })
+            .attr('cy', function (d) { return d.py; });
+        circles.enter().append('circle')
+            .attr('r', this.vRad)
+            .attr('cx', function (d) { return d.px; })
+            .attr('cy', function (d) { return d.py; })
+            .on('click', function (d) { return _tree.addChildren(d); });
         //d3.select("#treesvg").append('rect').attr('width', 50).attr('x', function (d) {
         //    return d.px;
         //}).attr('y', 110);
         var labels = d3.select("#g_labels").selectAll('text').data(this.getVertices());
-        labels.text(function (d) {
-            return d.name;
-        }).transition().duration(500)
-            .attr('x', function (d) {
-            return d.px;
-        }).attr('y', function (d) {
-            return d.py + 5;
-        });
-        labels.enter().append('text').attr('x', function (d) {
-            return d.parent.px;
-        }).attr('y', function (d) {
-            return d.parent.py + 5;
-        })
-            .text(function (d) {
-            return d.name;
-        }).on('click', function (d) {
-            return _tree.addLeaf(d.id);
-        })
+        labels.text(function (d) { return d.name; })
             .transition().duration(500)
-            .attr('x', function (d) {
-            return d.px;
-        }).attr('y', function (d) {
-            return d.py + 5;
-        });
+            .attr('x', function (d) { return d.px; })
+            .attr('y', function (d) { return d.py + 5; });
+        labels.enter().append('text')
+            .text(function (d) { return d.name; })
+            .attr('x', function (d) { return d.px; })
+            .attr('y', function (d) { return d.py + 5; })
+            .on('click', function (d) { return _tree.addChildren(d); });
     };
     AstTree.prototype.reposition = function (ast) {
         var lC = getLeafCount(ast), left = ast.px - this.node_width * (lC - 1) / 2;
@@ -235,3 +192,20 @@ var AstTree = (function () {
     };
     return AstTree;
 })();
+//d3.select("#treesvg").append('rect').attr('width', 50).attr('x', 600).attr('y', 100);
+//d3.select("#treesvg").append('g').attr('id', 'g_rects').selectAll('rect').data(tree.getVertices()).enter()
+//    .append('rect').attr('cx', function (d) {
+//    return d.px;
+//})  .attr('cy', function (d) {
+//    return d.py;
+//}).attr('width', vRad).attr('height', vRad)
+//var aaa = [{
+//    "v": 0,
+//    "l": root_node.name,
+//    "p": {
+//        "x": 800,
+//        "y": 30
+//    },
+//    "f": {}
+//}];
+//// 
