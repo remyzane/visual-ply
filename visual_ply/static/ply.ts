@@ -30,26 +30,12 @@ function get_node_data(node_name) {
 }
 
 
- function getLeafCount(_) {
-     if (_.children.length == 0) {
-         return 1;
-     } else {
-         var abc = _.children.map(getLeafCount);
-         return abc.reduce(
-             function (a, b) {
-                 return a + b;
-             }
-         );
-     }
-}
-
-
 class Ast {
     constructor(public id,
                 public name,
+                public width,
                 public px = 0,
                 public py = 0,
-                //public width = 1,
                 public children: any = [],
                 public parent: any = {id: null, px: null, py: null}) {
     }
@@ -58,37 +44,26 @@ class Ast {
 
 class AstTree {
     serial = 1;
-    ast = null;
-    vRad = 12;
-    node_width = 85;
+    vRad = 10;
     tier_height = 70;
-    constructor() {
-        var root_data = get_node_data('__root__');
-        this.ast = new Ast(0, root_data.name, 800, 30);
-        //console.log('aaa');
-        //console.log(this.ast);
-        this.bind_root_event();
+    ast = null;
+    curr_node = null;
 
-        var id = this.serial++;
-        var ast = new Ast(id, root_data.name);
-        this.addAst(null, ast);
-        console.log(root_data);
-        for (var children_data of root_data.children ){
-            console.log(children_data);
-            var children = new Ast(0, children_data.name);
-            this.addChildren(ast, children);
-        }
+    constructor() {
+        this.bind_root_event();
+        this.addChildren(null);
     }
 
     bind_root_event() {
-        d3.select("#treesvg").append('g').attr('id', 'g_circles').selectAll('circle').data(this.getVertices()).enter()
-            .append('circle').attr('r', this.vRad)
+        var _tree = this;
+
+        d3.select("#g_rects").selectAll('rect').data([]).enter()
+            .append('rect').attr('r', this.vRad)
             .on('click', function (d) {
                 return _tree.addChildren(d);
             });
 
-        var _tree = this;
-        d3.select("#treesvg").append('g').attr('id', 'g_labels').selectAll('text').data(this.getVertices()).enter()
+        d3.select("#g_labels").selectAll('text').data([]).enter()
             .append('text')
             .on('click', function (d) {
                 return _tree.addChildren(d);
@@ -98,9 +73,7 @@ class AstTree {
     getVertices() {
         var v = [];
         function _getVertices(t) {
-            //v.push({id: t.id, name: t.name, px: t.px, py: t.py, parent: parent});
             v.push(t);
-            //console.log(t);
             for (var d of t.children ) {
                 _getVertices(d);
             }
@@ -128,12 +101,40 @@ class AstTree {
     }
 
     addChildren(parent) {
-        var node = get_node_data(parent.name);
+        if (parent) {
+            var node = get_node_data(parent.name);
+        } else {
+            var node = get_node_data('__root__');
+            var id = this.serial++;
+            this.ast = new Ast(id, node.name, node.width, window.innerWidth/2 - 20, 30);
+            this.addAst(null, this.ast);
+            parent = this.ast;
+        }
 
-        var id = this.serial++;
-        var ast = new Ast(id, node.name);
+        this.curr_node = parent;
 
-        this.addAst(parent, ast);
+        for (var children_data of node.children ){
+            var id = this.serial++;
+            var children = new Ast(id, children_data.name, children_data.width);
+            this.addAst(parent, children);
+        }
+
+        function _clear(ast) {
+            var new_children = [];
+            for (var children of ast.children) {
+                if (children.parent.px == ast.px && children.parent.py == ast.py) {
+                    new_children.push(children);
+                    _clear(children)
+                }
+            }
+            ast.children = new_children;
+        }
+
+        _clear(this.ast);
+
+        this.reposition(this.ast);
+
+        this.redraw();
     }
 
     addAst(parent, c_ast) {
@@ -152,54 +153,27 @@ class AstTree {
             }
             return false;
         }
-
-        // ****************************************************
         _add(this.ast);
-        this.reposition(this.ast);
-        // ****************************************************
-
-        this.redraw();
     }
 
     redraw() {
-        var edges = d3.select("#g_lines").selectAll('line').data(this.getEdges());
         var _tree = this;
-        edges.transition().duration(500)
-            .attr('x1', function (d) { return d.parent.px; })
-            .attr('y1', function (d) { return d.parent.py; })
-            .attr('x2', function (d) { return d.px; })
-            .attr('y2', function (d) { return d.py; });
-
+        var edges = d3.select("#g_lines").selectAll('line').data(this.getEdges());
         edges.enter().append('line')
-            .attr('x1', function (d) { console.log(d.parent); return d.parent.px; })
-            .attr('y1', function (d) { return d.parent.py; })
+            .attr('x1', function (d) { return d.parent.px; })
+            .attr('y1', function (d) { return d.parent.py + _tree.vRad - 1; })
             .attr('x2', function (d) { return d.px; })
-            .attr('y2', function (d) { return d.py; });
+            .attr('y2', function (d) { return d.py - _tree.vRad; });
 
-
-        var circles = d3.select("#g_circles").selectAll('circle').data(this.getVertices());
-
-        circles.transition().duration(500)
-            .attr('cx', function (d) { return d.px; })
-            .attr('cy', function (d) { return d.py; });
-
-        circles.enter().append('circle')
-            .attr('r', this.vRad)
-            .attr('cx', function (d) { return d.px; })
-            .attr('cy', function (d) { return d.py; })
+        var rects = d3.select("#g_rects").selectAll('rect').data(this.getVertices());
+        rects.enter().append('rect')
+            .attr('height', this.vRad * 2)
+            .attr('width', function (d) { return d.width; })
+            .attr('x', function (d) { return d.px - d.width / 2; })
+            .attr('y', function (d) { return d.py - _tree.vRad; })
             .on('click', function (d) { return _tree.addChildren(d); });
-
-        //d3.select("#treesvg").append('rect').attr('width', 50).attr('x', function (d) {
-        //    return d.px;
-        //}).attr('y', 110);
-
+        
         var labels = d3.select("#g_labels").selectAll('text').data(this.getVertices());
-
-        labels.text(function (d) { return d.name; })
-            .transition().duration(500)
-            .attr('x', function (d) { return d.px; })
-            .attr('y', function (d) { return d.py + 5; });
-
         labels.enter().append('text')
             .text(function (d) { return d.name; })
             .attr('x', function (d) { return d.px; })
@@ -208,34 +182,17 @@ class AstTree {
     }
 
     reposition(ast) {
-        var lC = getLeafCount(ast), left = ast.px - this.node_width * (lC - 1) / 2;
-        for (var d of ast.children) {
-            var width = this.node_width * getLeafCount(d);
-            left += width;
-            d.px = left - (width + this.node_width) / 2;
-            d.py = ast.py + this.tier_height;
-            this.reposition(d);
+        var children_width = 0;
+        for (var children of ast.children) {
+            children_width += children.width;
         }
+        var left = ast.px - children_width / 2;
+        for (var children of ast.children) {
+            children.px = left + children.width / 2;
+            children.py = ast.py + this.tier_height;
+            left += children.width;
+            this.reposition(children);
+        }
+        console.log(ast);
     }
 }
-
-
-
-        //d3.select("#treesvg").append('rect').attr('width', 50).attr('x', 600).attr('y', 100);
-        //d3.select("#treesvg").append('g').attr('id', 'g_rects').selectAll('rect').data(tree.getVertices()).enter()
-        //    .append('rect').attr('cx', function (d) {
-        //    return d.px;
-        //})  .attr('cy', function (d) {
-        //    return d.py;
-        //}).attr('width', vRad).attr('height', vRad)
-
-        //var aaa = [{
-        //    "v": 0,
-        //    "l": root_node.name,
-        //    "p": {
-        //        "x": 800,
-        //        "y": 30
-        //    },
-        //    "f": {}
-        //}];
-        ////

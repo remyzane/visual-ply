@@ -11,13 +11,11 @@ def code(name):
 
 
 def width(name):
-    _width = 0
-    for _char in name:
-        if _char in string.uppercase:
-            _width += 10.5
-        else:
-            _width += 5.3
-    return int(_width)
+    # _width = 0
+    # for _char in name:
+    #     _width += 5.3 if (_char in string.lowercase) else 10.5
+    # return int(_width)
+    return len(name) * 9 + 2
 
 
 def get_visual_ply(lexer, parser, root_node):
@@ -54,13 +52,12 @@ class VisualPly(object):
 
         childrens = []
         for production in self.productions.get(node_name):
-            childrens.append({
-                'id': code(production['func']), 'name': production['str'], 'data': {'n_width': width(production['str'])}, 'children': []
-            })
+            for name in production['str'].split():
+                childrens.append({
+                    'id': production['func'], 'name': name, 'width': width(name), 'children': []
+                })
 
-
-
-        return {'id': code(node_name), 'name': node_name, 'data': {}, 'children': childrens}
+        return {'id': code(node_name), 'name': node_name, 'width': width(node_name), 'children': childrens[:]}
 
         # for token in self.tokens.items():
         #     print(token)

@@ -2,12 +2,15 @@
 body{
 	width: 100%;
     background-color: #000000;
+    font-family: Monaco;
+    font-size: 0.9em;
+    text-align: center;
 }
-circle{
-  fill: white;
-  stroke: steelblue;
-  stroke-width: 2px;
-}
+/*circle{*/
+  /*fill: white;*/
+  /*stroke: steelblue;*/
+  /*stroke-width: 2px;*/
+/*}*/
 
 line{
   stroke: #23a4ff;
@@ -19,7 +22,7 @@ line{
     height: 460px;
 }
 
-#treesvg g text:hover, #treesvg g circle:hover{
+#treesvg g text:hover, #treesvg g rect:hover{
 	cursor:pointer;
 }
 
@@ -29,15 +32,17 @@ line{
 
 svg text {
     fill: #ffffff;
+    height: 20px;
+    line-height: 20px;
 }
 
-svg circle {
-    fill: #000000;
-}
+/*svg circle {*/
+    /*fill: #000000;*/
+/*}*/
 
 svg rect {
-    stroke: #23a4ff;
-    height: 30px;
+    /*stroke: #23a4ff;*/
+    height: 20px;
 }
 
 
