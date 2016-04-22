@@ -1,13 +1,24 @@
-/// <reference path="libs/jquery.d.ts" />
-/// <reference path="libs/d3.d.ts" />
+/// <reference path='libs/jquery.d.ts' />
+/// <reference path='libs/d3.d.ts' />
+
+Array.prototype.in_array = function(e) {
+    for(var i=0; i<this.length; i++){
+        if(this[i] == e)
+            return true;
+    }
+    return false;
+};
+
+Array.prototype.remove = function(dx) {
+　if(isNaN(dx)||dx>this.length){return false;}
+　this.splice(dx,1);
+};
+
 
 function do_load() {
-
-    //console.log(JSON.stringify(root_node, null, 4));
-
-    var ply = new AstTree();
+    $('#treesvg').height(window.innerHeight - 30);
+    new AstTree();
 }
-
 
 
 function get_node_data(node_name) {
@@ -20,9 +31,10 @@ function get_node_data(node_name) {
         timeout: 3000,
         success: function (_data, textStatus, jqXHR) {
             data = _data;
+            //JSON.stringify(data, null, 4)
         },
         error: function (xhr, status, error) {
-            alert('Can not access API [ /ply?node=xxx ]');
+            alert('Can not access API [ /ply?node=??? ]');
             return;
         }
     });
@@ -32,12 +44,11 @@ function get_node_data(node_name) {
 
 class Ast {
     constructor(public id,
-                public name,
-                public width,
+                public data,
                 public px = 0,
                 public py = 0,
                 public children: any = [],
-                public parent: any = {id: null, px: null, py: null}) {
+                public parent: any = null) {
     }
 }
 
@@ -46,24 +57,29 @@ class AstTree {
     serial = 1;
     vRad = 10;
     tier_height = 70;
+    py_center = 30;
+    px_center = window.innerWidth/2;
+    inner_width = window.innerWidth;
     ast = null;
     curr_node = null;
+    leftmost = null;
+    rightmost = null;
 
     constructor() {
         this.bind_root_event();
-        this.addChildren(null);
+        this.addChildren('__root__');
     }
 
     bind_root_event() {
         var _tree = this;
 
-        d3.select("#g_rects").selectAll('rect').data([]).enter()
+        d3.select('#g_rects').selectAll('rect').data([]).enter()
             .append('rect').attr('r', this.vRad)
             .on('click', function (d) {
                 return _tree.addChildren(d);
             });
 
-        d3.select("#g_labels").selectAll('text').data([]).enter()
+        d3.select('#g_labels').selectAll('text').data([]).enter()
             .append('text')
             .on('click', function (d) {
                 return _tree.addChildren(d);
@@ -71,78 +87,125 @@ class AstTree {
     }
 
     getVertices() {
-        var v = [];
-        function _getVertices(t) {
-            v.push(t);
-            for (var d of t.children ) {
-                _getVertices(d);
+        var vertices = [];
+        function _getVertices(ast) {
+            vertices.push(ast);
+            for (var children of ast.children ) {
+                _getVertices(children);
             }
         }
         _getVertices(this.ast);
-        return v.sort(
-            function (a, b) {
-                return a.id - b.id;
+        return vertices.sort(
+            function (ast_a, ast_b) {
+                return ast_a.id - ast_b.id;
             }
         );
     }
 
     getEdges() {
-        var e = [];
+        var edges = [];
 
-        function _getEdges(_) {
-            for (var children of _.children) {
-                e.push(children);
-                _getEdges(children);
+        function _getEdges(ast) {
+            var id, x2, y2, width = 0;
+            var x1 = ast.px;
+            var y1 = ast.py;
+            for (var children of ast.children) {
+                if (!id) {
+                    id = children.id;
+                    x2 = children.px - children.data.width / 2;
+                    y2 = children.py;
+                }
+                if (children.data.type == 'separator') {
+                    edges.push({'id': id, 'x1': x1, 'y1': y1, 'x2': x2 + width / 2, 'y2': y2});
+                    id = null;
+                    width = 0;
+                } else {
+                    width += children.data.width;
+                }
+                if (children.data.type == 'production') {
+                    _getEdges(children);
+                }
+            }
+            if (id) {
+                edges.push({'id': id, 'x1': x1, 'y1': y1, 'x2': x2 + width / 2, 'y2': y2});
             }
         }
-
         _getEdges(this.ast);
-        return e.sort(function (a, b) { return a.id - b.id; });
+
+        return edges.sort(
+            function (ast_a, ast_b) {
+                return ast_a.id - ast_b.id;
+            }
+        );
     }
 
     addChildren(parent) {
-        if (parent) {
-            var node = get_node_data(parent.name);
-        } else {
+        var init = parent == '__root__';
+        if (this.curr_node == parent) {
+            return;
+        }
+        $('#message').text('loading...');
+        if (init) {
             var node = get_node_data('__root__');
             var id = this.serial++;
-            this.ast = new Ast(id, node.name, node.width, window.innerWidth/2 - 20, 30);
+            this.ast = new Ast(id, node, this.px_center, this.py_center);
             this.addAst(null, this.ast);
+            this.leftmost = this.rightmost = this.ast;
             parent = this.ast;
+        } else {
+            if (parent.data.type != 'production') {
+                $('#message').text('');
+                return;
+            }
+            var node = get_node_data(parent.data.ext.name);
         }
 
-        this.curr_node = parent;
+        var parent_id_list = [];
+        var parent_cursor = this.curr_node = parent;
+        if (!init) {
+            parent_cursor = parent.parent;
+        }
+
+        while (parent_cursor) {
+            parent_id_list.push(parent_cursor.id);
+            parent_cursor = parent_cursor.parent;
+        }
+
+        $('line').remove();
+        $('rect').remove();
+        $('text').remove();
+        function _clear(ast) {
+            for (var i = ast.children.length -1; i > -1;  i--) {
+                _clear(ast.children[i])
+                if (!parent_id_list.in_array(ast.children[i].parent.id)) {
+                    //$('#line_' + ast.children[i].id).remove();
+                    //$('#rect_' + ast.children[i].id).remove();
+                    //$('#label_' + ast.children[i].id).remove();
+                    ast.children.remove(i);
+                }
+            }
+        }
+        _clear(this.ast);
 
         for (var children_data of node.children ){
             var id = this.serial++;
-            var children = new Ast(id, children_data.name, children_data.width);
+            var children = new Ast(id, children_data);
             this.addAst(parent, children);
         }
-
-        function _clear(ast) {
-            var new_children = [];
-            for (var children of ast.children) {
-                if (children.parent.px == ast.px && children.parent.py == ast.py) {
-                    new_children.push(children);
-                    _clear(children)
-                }
-            }
-            ast.children = new_children;
-        }
-
-        _clear(this.ast);
 
         this.reposition(this.ast);
 
         this.redraw();
+
+        $('#message').text('');
     }
 
     addAst(parent, c_ast) {
         if (parent) {
-            c_ast.parent = {id: parent.id, px: parent.px, py: parent.py};
+            c_ast.parent = parent;
         }
         function _add(ast) {
-            if (ast.id == c_ast.parent.id) {
+            if (c_ast.parent && ast.id == c_ast.parent.id) {
                 ast.children.push(c_ast);
                 return true;
             }
@@ -156,43 +219,146 @@ class AstTree {
         _add(this.ast);
     }
 
+    get_excess(parent_cursor) {
+        var excess = {'left': -10000, 'right': -10000};
+        while (parent_cursor) {
+            var left_node = parent_cursor.children[0];
+            var right_node = parent_cursor.children[parent_cursor.children.length-1];
+            var left = left_node.data.width / 2 - left_node.px;
+            var right = right_node.px + right_node.data.width / 2 - this.inner_width;
+            if (left > excess.left && excess.right < 0) {
+                excess.left = left;
+            }
+            if (right > excess.right && excess.left < 0) {
+                excess.right = right;
+            }
+            parent_cursor = parent_cursor.parent;
+        }
+        return excess;
+    }
+
+    reposition(root_ast) {
+        var _tree = this;
+        var min_width = 0;
+
+        function _repo(ast) {
+            var children_width = 0;
+            for (var children of ast.children) {
+                children_width += children.data.width;
+            }
+            if (min_width < children_width) {
+                min_width = children_width;
+            }
+            var left = ast.px - children_width / 2;
+            for (var children of ast.children) {
+                children.px = left + children.data.width / 2;
+                children.py = ast.py + _tree.tier_height;
+                left += children.data.width;
+                _repo(children);
+            }
+        }
+        _repo(root_ast);
+        if (window.innerWidth < min_width + 20) {
+            $('#treesvg').width(min_width + 20);
+            this.px_center = (min_width + 20) / 2;
+            this.inner_width = min_width + 20;
+        } else {
+            $('#treesvg').width(window.innerWidth);
+            this.px_center = window.innerWidth / 2;
+            this.inner_width = window.innerWidth;
+        }
+
+        var need_move = false;
+        var excess = this.get_excess(this.curr_node);
+        if (excess.left > 0 || excess.right > 0) {
+            need_move = true;
+            if (excess.left > 0) {
+                if (excess.left < (-excess.right) + 10) {
+                    root_ast.px += excess.left + 10;
+                } else {
+                    root_ast.px += (-excess.right) - 5;
+                }
+            } else {
+                if (excess.right < (-excess.left) + 10) {
+                    root_ast.px -= excess.right + 10;
+                } else {
+                    root_ast.px -= (-excess.left) - 5;
+                }
+
+            }
+        }
+        var excess_bottom = this.curr_node.children[0].py + this.vRad + 40 - window.innerHeight;
+        if (excess_bottom > 0) {
+            root_ast.py -= excess_bottom;
+            need_move = true;
+        } else {
+            if (root_ast.py != this.py_center) {
+                if ((this.py_center - root_ast.py) < (-excess_bottom - 10)){
+                    root_ast.py = this.py_center;
+                } else {
+                    root_ast.py += (-excess_bottom) - 10;
+                }
+                need_move = true;
+            }
+        }
+        if (need_move) {
+            _repo(root_ast);
+        }
+    }
+
     redraw() {
         var _tree = this;
-        var edges = d3.select("#g_lines").selectAll('line').data(this.getEdges());
+        var edges = d3.select('#g_lines').selectAll('line').data(this.getEdges());
         edges.enter().append('line')
-            .attr('x1', function (d) { return d.parent.px; })
-            .attr('y1', function (d) { return d.parent.py + _tree.vRad - 1; })
-            .attr('x2', function (d) { return d.px; })
-            .attr('y2', function (d) { return d.py - _tree.vRad; });
+            .attr('id', function (d) { return 'line_' + d.id; })
+            .attr('x1', function (d) { return d.x1; })
+            .attr('y1', function (d) { return d.y1 + _tree.vRad; })
+            .attr('x2', function (d) { return d.x2; })
+            .attr('y2', function (d) { return d.y2 - _tree.vRad; });
 
-        var rects = d3.select("#g_rects").selectAll('rect').data(this.getVertices());
+        var rects = d3.select('#g_rects').selectAll('rect').data(this.getVertices());
         rects.enter().append('rect')
+            .attr('id', function (d) { return 'rect_' + d.id; })
+            .attr('ext', function (d) { return d.data.ext; })
             .attr('height', this.vRad * 2)
-            .attr('width', function (d) { return d.width; })
-            .attr('x', function (d) { return d.px - d.width / 2; })
+            .attr('width', function (d) { return d.data.width; })
+            .attr('x', function (d) { return d.px - d.data.width / 2; })
             .attr('y', function (d) { return d.py - _tree.vRad; })
+            .attr('class', function (d) { return d.data.type; })
             .on('click', function (d) { return _tree.addChildren(d); });
-        
-        var labels = d3.select("#g_labels").selectAll('text').data(this.getVertices());
+
+        var labels = d3.select('#g_labels').selectAll('text').data(this.getVertices());
         labels.enter().append('text')
-            .text(function (d) { return d.name; })
+            .attr('id', function (d) { return 'label_' + d.id; })
+            .attr('ext', function (d) { return d.data.ext; })
             .attr('x', function (d) { return d.px; })
             .attr('y', function (d) { return d.py + 5; })
+            .attr('class', function (d) { return d.data.type; })
+            .text(function (d) { return d.data.label; })
+            .on("mousemove", _tree.showStatus)
+            .on("mouseout", function () { $('#status').text(''); })
             .on('click', function (d) { return _tree.addChildren(d); });
     }
 
-    reposition(ast) {
-        var children_width = 0;
-        for (var children of ast.children) {
-            children_width += children.width;
+    showStatus(ast) {
+        console.log(ast.data);
+        var ext = ast.data.ext;
+        var status = 'function: ' + ast.data.fun;
+        switch(ast.data.type)
+        {
+        case 'token_char':
+            status += '　　　　　　token: ' + ext.text;
+            break;
+        case 'token_expression':
+            status += '　　　　　　token expression: ' + ext.text;
+            break;
+        case 'production_self':
+            status += '　　　　　　production: ' + ext.text;
+            break;
+        case 'separator':
+            status = '';
+            break;
         }
-        var left = ast.px - children_width / 2;
-        for (var children of ast.children) {
-            children.px = left + children.width / 2;
-            children.py = ast.py + this.tier_height;
-            left += children.width;
-            this.reposition(children);
-        }
-        console.log(ast);
+        $('#status').text(status);
     }
 }

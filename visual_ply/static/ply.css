@@ -5,29 +5,39 @@ body{
     font-family: Monaco;
     font-size: 0.9em;
     text-align: center;
+    margin: 0;
 }
-/*circle{*/
-  /*fill: white;*/
-  /*stroke: steelblue;*/
-  /*stroke-width: 2px;*/
-/*}*/
 
-line{
-  stroke: #23a4ff;
-  stroke-width: 2px;
+#message, #status {
+    height: 30px;
+    line-height: 30px;
+    margin: 0 15px -30px 15px;
+}
+
+#message {
+    text-align: left;
+    font-size:1.0em;
+    font-weight:bold;
+    color:#23A4FF;
+}
+
+#status {
+    text-align: right;
+    color:#ccc;
 }
 
 #treesvg {
     width: 100%;
-    height: 460px;
-}
-
-#treesvg g text:hover, #treesvg g rect:hover{
-	cursor:pointer;
+    margin-top: 30px;
 }
 
 #g_labels text{
-	text-anchor:middle;
+	text-anchor: middle;
+}
+
+svg line{
+  stroke: #23a4ff;
+  stroke-width: 0.7px;
 }
 
 svg text {
@@ -36,62 +46,33 @@ svg text {
     line-height: 20px;
 }
 
-/*svg circle {*/
-    /*fill: #000000;*/
-/*}*/
-
 svg rect {
-    /*stroke: #23a4ff;*/
     height: 20px;
 }
 
+text.production {
+    fill: #23a4ff;
+}
 
-/*html, body {*/
-    /*margin:0;*/
-    /*padding:0;*/
-    /*font-family: "Lucida Grande", Verdana;*/
-    /*font-size: 0.9em;*/
-    /*text-align: center;*/
-    /*background-color:#F2F2F2;*/
-/*}*/
+text.production_self {
+    font-size: 1.2em;
+    fill: #ffff00;
+}
 
-/*input, select {*/
-    /*font-size:0.9em;*/
-/*}*/
+text.separator{
+    font-size: 1em;
+    fill: #cccccc;
+}
 
-/*h4 {*/
-    /*font-size:1.1em;*/
-    /*text-decoration:none;*/
-    /*font-weight:normal;*/
-    /*color:#23A4FF;*/
-/*}*/
+text.token_char, text.token_expression {
+    fill: #c3a75f;
+}
 
-/*a {*/
-    /*color:#23A4FF;*/
-/*}*/
+text.other_string {
+    fill: green;
+}
 
-/*#message, #status {*/
-    /*height: 30px;*/
-    /*line-height: 30px;*/
-    /*margin: 0 15px -30px 15px;*/
-/*}*/
-
-/*#message {*/
-    /*text-align: left;*/
-    /*font-size:1.0em;*/
-    /*font-weight:bold;*/
-    /*color:#23A4FF;*/
-/*}*/
-
-/*#status {*/
-    /*text-align: right;*/
-/*}*/
-
-/*#container, #status {*/
-    /*background-color:#1a1a1a;*/
-    /*color:#ccc;*/
-/*}*/
-
-/*#container {*/
-    /*width:100%;*/
-/*}*/
+text.production:hover, text.token_char:hover, text.token_expression:hover,
+rect.production:hover, rect.token_char:hover, rect.token_expression:hover {
+    cursor: pointer;
+}

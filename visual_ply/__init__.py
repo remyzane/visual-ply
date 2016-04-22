@@ -1,4 +1,3 @@
-import string
 
 random_number = 0
 visual_ply = None
@@ -11,6 +10,7 @@ def code(name):
 
 
 def width(name):
+    # import string
     # _width = 0
     # for _char in name:
     #     _width += 5.3 if (_char in string.lowercase) else 10.5
@@ -32,7 +32,6 @@ class VisualPly(object):
         self.root_node = root_node
         self.tokens = dict()
         self.productions = dict()
-        # for token_str in lexer.lexretext[0][3:-1].split(')|(?P'):
         for token_str in lexer.lexstatere['INITIAL'][0][0].pattern[3:-1].split(')|(?P'):
             name, value = token_str[3:].split('>', 1)
             self.tokens[name] = value
@@ -41,32 +40,36 @@ class VisualPly(object):
                 self.productions[production.name] = []
             self.productions[production.name].append({
                 'func': production.func,
-                # 'name': production.name,
                 'str': production.str.split(' -> ')[1]
             })
-            # print(dir(production))
-            # print(production.len, production.str)
 
     def get_node(self, node_name):
         node_name = self.root_node if node_name == '__root__' else node_name
-
-        childrens = []
+        children_list = []
         for production in self.productions.get(node_name):
-            for name in production['str'].split():
-                childrens.append({
-                    'id': production['func'], 'name': name, 'width': width(name), 'children': []
-                })
+            for case_str in production['str'].split():
+                label = case_str
+                _type = 'other_string'
+                ext = dict()
+                if case_str in self.tokens:
+                    if len(self.tokens[case_str]) == 1:
+                        label = self.tokens[case_str]
+                        ext['text'] = case_str
+                        _type = 'token_char'
+                    else:
+                        ext['text'] = self.tokens[case_str]
+                        _type = 'token_expression'
+                elif case_str == node_name:
+                    label = '~ '
+                    ext['text'] = case_str
+                    _type = 'production_self'
+                elif case_str in self.productions:
+                    _type = 'production'
+                    ext['name'] = case_str
+                children_list.append({'type': _type, 'ext': ext, 'label': label, 'width': width(label),
+                                  'fun': production['func'], 'children': []})
 
-        return {'id': code(node_name), 'name': node_name, 'width': width(node_name), 'children': childrens[:]}
+            children_list.append({'type': 'separator', 'label': '|', 'name': '|', 'width': width('  '), 'children': []})
 
-        # for token in self.tokens.items():
-        #     print(token)
-
-        # for name, production in self.productions.items():
-        #     print('%s --------------------------' % name)
-        #     for item in production:
-        #         pass
-        #         print(item['str'])
-        # if data_type == 'menu':
-        #     return {'aaa': 1}
-
+        return {'name': node_name, 'width': width(node_name), 'label': node_name, 'type': 'production',
+                'children': children_list[:-1]}
